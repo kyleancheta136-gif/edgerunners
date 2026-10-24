@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#08090d" />
+    <meta name="description" content="Enter Night City in an interactive 3D cyberpunk experience. Explore neon districts, cinematic cityscapes, and the world of Edgerunners." />
+    <title>Night City — Interactive Cyberpunk Experience</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%23f2ea0d%22/><text x=%2250%22 y=%2268%22 font-size=%2250%22 text-anchor=%22middle%22 font-family=%22Arial%22 font-weight=%22900%22>NC</text></svg>" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,500;0,600;0,700;0,800;0,900;1,700;1,800;1,900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="loader" id="loader" aria-live="polite">
+      <div class="loader__top"><span>NC//SYSTEM</span><span>EST. 1994</span></div>
+      <div class="loader__center">
+        <p class="loader__eyebrow">INITIALIZING NEURAL LINK</p>
+        <div class="loader__wordmark" data-text="NIGHT CITY">NIGHT CITY</div>
+        <div class="loader__track"><span id="loader-progress"></span></div>
+        <div class="loader__status"><span id="loader-label">CONSTRUCTING CITYSCAPE</span><span id="loader-value">0%</span></div>
+      </div>
+      <p class="loader__bottom">A CITY OF DREAMS. AND DREAMERS.</p>
+    </div>
+
+    <div id="webgl" class="webgl" aria-hidden="true"></div>
+    <div class="scene-shade" aria-hidden="true"></div>
+    <div class="grain" aria-hidden="true"></div>
+
+    <header class="site-header">
+      <button class="brand" id="home-button" aria-label="Return to Night City overview">
+        <span class="brand__mark">NC<span>//</span></span>
+        <span class="brand__name">NIGHT CITY<br /><small>EDGERUNNERS</small></span>
+      </button>
+      <nav class="main-nav" aria-label="Main navigation">
+        <button class="nav-link active" data-nav="overview"><span>01</span> OVERVIEW</button>
+        <button class="nav-link" data-nav="districts"><span>02</span> LOCATIONS</button>
+        <button class="nav-link" data-nav="archive"><span>03</span> ARCHIVE</button>
+      </nav>
+      <div class="header-actions">
+        <div class="network-status"><i></i><span>NET//ONLINE</span></div>
+        <button class="weather-toggle" id="weather-toggle" aria-label="Open weather controls" aria-expanded="false" aria-controls="weather-panel">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 15a4 4 0 0 1 .6-8A5.7 5.7 0 0 1 18 8.4a3.6 3.6 0 0 1-.5 6.6H6.5ZM8 18l-1.2 2M12.5 18l-1.2 2M17 18l-1.2 2" /></svg>
+          <span>WEATHER</span>
+          <i id="weather-indicator">SUN</i>
+        </button>
+        <button class="music-toggle" id="music-toggle" aria-label="Open music player" aria-expanded="false" aria-controls="music-player">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l11-2v13M9 9l11-2" /><circle cx="6" cy="18" r="3" /><circle cx="17" cy="16" r="3" /></svg>
+          <span>MUSIC</span>
+        </button>
+        <button class="sound-toggle" id="sound-toggle" aria-label="Enable music and sound effects" aria-pressed="false">
+          <span class="sound-bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+          <span id="sound-label">SOUND OFF</span>
+        </button>
+      </div>
+    </header>
+
+    <aside class="music-player" id="music-player" aria-label="Music player" hidden>
+      <div class="music-player__header"><span>NC//AUDIO DECK</span><button id="close-music" aria-label="Close music player">×</button></div>
+      <div class="track-card">
+        <div class="track-card__cover"><img src="/edgerunners-poster.png" alt="Edgerunners soundtrack artwork" /><span class="track-card__pulse"><i></i><i></i><i></i><i></i></span></div>
+        <div class="track-card__meta"><small id="track-source">EDGERUNNERS // DEFAULT TRACK</small><h2 id="track-title">I Really Want to Stay at Your House</h2><p id="track-artist">Rosa Walton &amp; Hallie Coggins</p></div>
+      </div>
+      <div class="track-timeline">
+        <label class="sr-only" for="track-progress">Track position</label>
+        <input id="track-progress" type="range" min="0" max="1000" value="0" />
+        <div><span id="track-current">0:00</span><span id="track-duration">0:00</span></div>
+      </div>
+      <div class="playback-controls">
+        <button class="play-toggle" id="play-toggle" aria-label="Play music">
+          <svg id="play-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7Z" /></svg>
+          <svg id="pause-icon" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="M8 5v14M16 5v14" /></svg>
+        </button>
+        <div class="volume-control"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 10v4h4l5 4V6l-5 4H5ZM17 9c1 2 1 4 0 6M20 6c3 4 3 8 0 12" /></svg><label class="sr-only" for="music-volume">Music volume</label><input id="music-volume" type="range" min="0" max="1" step="0.01" value="0.55" /></div>
+      </div>
+      <label class="file-picker" for="track-file"><span>CHOOSE AUDIO FROM DEVICE</span><span>+</span><input id="track-file" type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac" /></label>
+      <p class="file-note">MP3, WAV, OGG, M4A · PLAYED LOCALLY, NEVER UPLOADED</p>
+      <div class="audio-options"><button id="default-track">RESTORE DEFAULT</button><button id="sfx-toggle" aria-pressed="true">AMBIENCE + SFX <span id="sfx-status">ENABLED</span></button></div>
+    </aside>
+
+    <aside class="weather-panel" id="weather-panel" aria-label="Weather controls" hidden>
+      <div class="weather-panel__header"><span>NC//WEATHER GRID</span><button id="close-weather" aria-label="Close weather controls">×</button></div>
+      <div class="weather-panel__readout"><span><i></i> ACTIVE CONDITIONS</span><strong id="weather-current">SUNNY</strong></div>
+      <div class="weather-grid" role="group" aria-label="Choose weather">
+        <button class="weather-option" data-weather="off" aria-pressed="true">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4M4 4l16 16" /></svg>
+          <span><strong>SUNNY</strong><small>CLEAR SKIES</small></span>
+        </button>
+        <button class="weather-option" data-weather="rain" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 14.5a4 4 0 0 1 .6-8A5.7 5.7 0 0 1 18 7.9a3.6 3.6 0 0 1-.5 6.6H6.5ZM8 17.5l-1.2 2.5M12.5 17.5l-1.2 2.5M17 17.5l-1.2 2.5" /></svg>
+          <span><strong>RAIN</strong><small>STEADY FALL</small></span>
+        </button>
+        <button class="weather-option" data-weather="storm" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 13.5a4 4 0 0 1 .6-8A5.7 5.7 0 0 1 18 6.9a3.6 3.6 0 0 1-.5 6.6H6.5ZM13 14l-3 5h3l-1 3 5-6h-3l1-2" /></svg>
+          <span><strong>THUNDERSTORM</strong><small>STORM CELL</small></span>
+        </button>
+        <button class="weather-option" data-weather="wind" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h11a2.5 2.5 0 1 0-2.5-2.5M3 12h15a2.5 2.5 0 1 1-2.5 2.5M3 16h8a2 2 0 1 1-2 2" /></svg>
+          <span><strong>WINDY</strong><small>GALE FRONT</small></span>
+        </button>
+      </div>
+      <div class="weather-panel__footer"><span>LOCAL WEATHER SIM</span><span id="weather-readout">CLEAR SKIES // 22 KM/H</span></div>
+    </aside>
+
+    <div class="side-code" aria-hidden="true">NC.2077 // WATSON DEVELOPMENT BUILD</div>
+    <div class="frame-corner frame-corner--tl" aria-hidden="true"></div>
+    <div class="frame-corner frame-corner--br" aria-hidden="true"></div>
+
+    <main>
+      <section class="hero" id="overview" aria-labelledby="hero-title">
+        <div class="hero__eyebrow"><span class="live-dot"></span> YOUR NEXT ADVENTURE AWAITS</div>
+        <h1 id="hero-title" aria-label="Night City"><span>NIGHT</span><span class="hero__city" data-text="CITY">CITY</span></h1>
+        <div class="hero__subline"><span>THE CITY OF DREAMS</span><span class="hero__year">// 2077</span></div>
+        <p class="hero__copy">A neon-soaked metropolis on the edge of tomorrow.<br />No limits. No second chances. Make your own legend.</p>
+        <div class="hero__actions">
+          <button class="button button--primary" id="enter-button"><span>ENTER THE CITY</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></button>
+          <button class="button button--text" id="districts-button">EXPLORE LOCATIONS <span>↗</span></button>
+        </div>
+      </section>
+
+      <aside class="city-data" aria-label="Live city data">
+        <div class="city-data__heading"><span>LIVE CITY DATA</span><i></i></div>
+        <dl>
+          <div><dt>LOCAL TIME</dt><dd id="local-time">23:48:09</dd></div>
+          <div><dt>POPULATION</dt><dd>6,912,447</dd></div>
+          <div><dt>THREAT LEVEL</dt><dd class="danger">SEVERE <span>▲</span></dd></div>
+        </dl>
+        <div class="signal"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      </aside>
+
+      <button class="transmission" id="transmission-button" aria-label="Open Night City transmission archive">
+        <span class="transmission__image"><img src="/edgerunners-poster.png" alt="Cyberpunk Edgerunners neon broadcast" /><i></i></span>
+        <span class="transmission__meta"><small>INCOMING TRANSMISSION</small><strong>NCW // CHANNEL 07</strong><span>CLICK TO DECRYPT ↗</span></span>
+      </button>
+
+      <section class="district-panel" id="district-panel" aria-labelledby="district-name" hidden>
+        <button class="district-panel__close" id="close-district" aria-label="Close district details">×</button>
+        <p class="district-panel__eyebrow" id="district-code">DISTRICT 01 // NC</p>
+        <h2 id="district-name">CITY CENTER</h2>
+        <p class="district-panel__description" id="district-description"></p>
+        <dl class="district-panel__stats">
+          <div><dt>SECURITY</dt><dd id="district-security"></dd></div>
+          <div><dt>AFTER DARK</dt><dd id="district-vibe"></dd></div>
+        </dl>
+        <div class="district-places" id="district-places" hidden>
+          <p class="district-places__heading"><span>SUMMIT RIDGE</span>SELECT A PLACE</p>
+          <div class="district-places__grid" role="group" aria-label="Suburb places">
+            <button data-place="overview" aria-pressed="true"><span>00</span>OVERVIEW</button>
+            <button data-place="houses" aria-pressed="false"><span>01</span>HOUSES</button>
+            <button data-place="houses2" aria-pressed="false"><span>01B</span>HOUSES II</button>
+            <button data-place="malls" aria-pressed="false"><span>02</span>MALLS</button>
+            <button data-place="street" aria-pressed="false"><span>03</span>STREET</button>
+            <button data-place="station" aria-pressed="false"><span>04</span>STATION</button>
+            <button data-place="parks" aria-pressed="false"><span>05</span>PARKS</button>
+            <button data-place="school" aria-pressed="false"><span>06</span>SCHOOL</button>
+            <button data-place="church" aria-pressed="false"><span>07</span>CHURCH</button>
+            <button data-place="sidewalks" aria-pressed="false"><span>08</span>SIDEWALKS</button>
+          </div>
+        </div>
+        <div class="district-panel__line"></div>
+        <p class="district-panel__tip">DRAG TO LOOK AROUND · SCROLL TO ZOOM</p>
+      </section>
+    </main>
+
+    <footer class="experience-footer">
+      <div class="location"><span class="location__cross">+</span><div><small>CURRENT LOCATION</small><strong id="location-name">NIGHT CITY // OVERVIEW</strong></div></div>
+      <nav class="district-dock" aria-label="City locations">
+        <button data-district="heywood"><span>01</span><strong>HEYWOOD</strong><i></i></button>
+        <button data-district="center"><span>02</span><strong>CITY CENTER</strong><i></i></button>
+        <button data-district="japantown"><span>03</span><strong>JAPANTOWN</strong><i></i></button>
+        <button data-district="market"><span>04</span><strong>NIGHT MARKET</strong><i></i></button>
+        <button data-district="highway"><span>05</span><strong>HIGHWAY</strong><i></i></button>
+        <button data-district="beach"><span>06</span><strong>PACIFICA</strong><i></i></button>
+        <button data-district="suburbs"><span>07</span><strong>SUBURBS</strong><i></i></button>
+      </nav>
+      <div class="control-hint"><svg viewBox="0 0 24 28" aria-hidden="true"><rect x="4" y="2" width="16" height="24" rx="8" /><path d="M12 6v6" /></svg><span>DRAG TO EXPLORE<br /><small>SCROLL TO ZOOM</small></span></div>
+    </footer>
+
+    <dialog class="archive-modal" id="archive-modal" aria-labelledby="archive-title">
+      <button class="archive-modal__close" id="close-archive" aria-label="Close archive">×</button>
+      <div class="archive-modal__visual"><img src="/edgerunners-poster.png" alt="Cyberpunk Edgerunners official-style neon title artwork" /><span>ARCHIVE FILE // 077</span></div>
+      <div class="archive-modal__content">
+        <p class="eyebrow">RECOVERED FROM THE NET</p>
+        <h2 id="archive-title">WELCOME TO<br /><span>THE EDGE.</span></h2>
+        <p>In a city obsessed with power, glamour, and body modification, survival means choosing how much of yourself you’re willing to lose.</p>
+        <p>This fan-made WebGL experience reimagines the neon-noir atmosphere of Cyberpunk: Edgerunners as an interactive, procedurally generated city.</p>
+        <div class="archive-modal__tags"><span>WEBGL</span><span>THREE.JS</span><span>REAL-TIME 3D</span></div>
+        <button class="button button--primary" id="archive-enter"><span>BACK TO NIGHT CITY</span><span>→</span></button>
+      </div>
+    </dialog>
+
+    <div class="toast" id="toast" role="status"><span>✓</span><p><small>SYSTEM MESSAGE</small><strong id="toast-message">NEURAL LINK ESTABLISHED</strong></p></div>
+    <div class="webgl-error" id="webgl-error" hidden><h2>NEURAL LINK UNAVAILABLE</h2><p>This experience needs a browser with WebGL enabled.</p></div>
+    <noscript><div class="webgl-error"><h2>JAVASCRIPT REQUIRED</h2><p>Enable JavaScript to enter Night City.</p></div></noscript>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
