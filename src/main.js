@@ -87,6 +87,11 @@ const suburbPlaces = {
     description: 'Wide, spotless sidewalks stitch the sector together: wayfinder maps, timber benches, luminous planters, a transit shelter, and not one piece of litter in sight.',
     security: 'MONITORED', vibe: 'ORDERED CALM', location: 'SUMMIT RIDGE // PEDESTRIAN GRID',
   },
+  bench: {
+    code: 'PLACE 09 // PLATFORM 02', name: 'PLATFORM BENCH',
+    description: 'A quiet seat beneath the shelter, with Line 09 arriving across the tactile strip and Summit Ridge holding the horizon.',
+    security: 'BADGE ONLY', vibe: 'BLUE HOUR CALM', location: 'SUMMIT STATION // PLATFORM BENCH',
+  },
 };
 
 const elements = Object.fromEntries([
@@ -140,7 +145,10 @@ function selectSuburbPlace(place) {
   elements['location-name'].textContent = content.location;
   setActivePlace(place);
   setNavigation('districts');
+  document.body.classList.toggle('bench-mode', place === 'bench');
+  document.getElementById('bench-caption').hidden = place !== 'bench';
   audioControls.sfx('transition');
+  audioControls.setStationAmbience(place === 'bench' ? 1 : place === 'station' ? 0.65 : 0.15);
   cityScene.focusSuburbPlace(place);
 }
 
@@ -149,6 +157,8 @@ function selectDistrict(id) {
   if (!district || !cityScene) return;
   activeDistrict = id;
   document.body.classList.add('is-exploring');
+  document.body.classList.remove('bench-mode');
+  document.getElementById('bench-caption').hidden = true;
   elements['district-panel'].hidden = false;
   elements['district-code'].textContent = district.code;
   elements['district-name'].textContent = district.name;
@@ -167,12 +177,14 @@ function selectDistrict(id) {
   if (window.innerWidth <= 760) dock.scrollTo({ left: selectedButton.offsetLeft - dock.clientWidth / 2 + selectedButton.clientWidth / 2, behavior: 'smooth' });
   setNavigation('districts');
   audioControls.sfx('transition');
+  audioControls.setStationAmbience(id === 'suburbs' ? 0.15 : 0);
   cityScene.focusDistrict(id);
 }
 
 function resetOverview() {
   if (!cityScene) return;
-  document.body.classList.remove('is-exploring');
+  document.body.classList.remove('is-exploring', 'bench-mode');
+  document.getElementById('bench-caption').hidden = true;
   elements['district-panel'].hidden = true;
   elements['district-places'].hidden = true;
   setActivePlace('');
@@ -182,6 +194,7 @@ function resetOverview() {
     button.setAttribute('aria-pressed', 'false');
   });
   setNavigation('overview');
+  audioControls.setStationAmbience(0);
   cityScene.reset();
 }
 
@@ -198,6 +211,7 @@ document.getElementById('enter-button').addEventListener('click', () => {
 document.getElementById('districts-button').addEventListener('click', () => selectDistrict(activeDistrict));
 document.getElementById('home-button').addEventListener('click', resetOverview);
 document.getElementById('close-district').addEventListener('click', resetOverview);
+document.getElementById('bench-return').addEventListener('click', () => selectSuburbPlace('station'));
 document.querySelectorAll('[data-district]').forEach((button) => {
   button.setAttribute('aria-pressed', String(button.classList.contains('active')));
   button.addEventListener('click', () => selectDistrict(button.dataset.district));
@@ -250,8 +264,13 @@ requestAnimationFrame(() => {
   try {
     cityScene = createCityScene(document.getElementById('webgl'), {
       onThunder: () => setTimeout(() => audioControls.sfx('thunder'), 650 + Math.random() * 900),
+      onStationAudio: (type) => audioControls.sfx(type),
     });
     cityScene.setWeather(weatherControls.current);
+    if (import.meta.env.DEV) {
+      window.__NC_STATION__ = () => cityScene.getStationDebugState();
+      window.__NC_CAMERA__ = () => cityScene.getCameraDebugState();
+    }
     clearInterval(loadingInterval);
     elements['loader-progress'].style.width = '100%';
     elements['loader-value'].textContent = '100%';

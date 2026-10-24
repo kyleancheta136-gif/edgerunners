@@ -1,5 +1,10 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { STATION_CONFIG } from './station-config.js';
+import { buildStationArchitecture } from './station-architecture.js';
+import { createStationTrain } from './station-train.js';
+import { createStationPassengers } from './station-passenger-view.js';
+import { createBenchCommuter } from './station-bench.js';
 
 const TAU = Math.PI * 2;
 const UP = new THREE.Vector3(0, 1, 0);
@@ -17,6 +22,7 @@ export const SUBURB_VIEWS = {
   malls: { position: [8, 25, -2], target: [46, 3, 34] },
   street: { position: [-20, 9.2, 17], target: [18, 2.8, -3] },
   station: { position: [26, 18, -24], target: [-20, 8, -62] },
+  bench: STATION_CONFIG.benchCamera,
   parks: { position: [-6, 22, 56], target: [-44, 2, 32] },
   school: { position: [-14, 20, -50], target: [-48, 3, -24] },
   church: { position: [0, 11, 26], target: [21, 7, 64] },
@@ -406,7 +412,7 @@ function makeCloudTexture() {
   });
 }
 
-export function buildSuburbs(scene) {
+export function buildSuburbs(scene, { onAudio, reducedMotion = false } = {}) {
   const random = seededRandom(24072077);
   const group = new THREE.Group();
   group.name = 'Summit Ridge Suburbs';
@@ -1562,61 +1568,25 @@ export function buildSuburbs(scene) {
     addBox(concreteDark, x, 0.3, railZ, 2.6, 0.6, 2.6);
     addBox(cyanGlow, x, 8.2, railZ + 1.0, 1.3, 0.08, 0.1);
   }
-  addBox(white, -9, 8.9, railZ, 30, 1.0, 8.4);
-  addBox(white, -9, 9.5, railZ - 4.3, 30, 0.9, 0.5);
-  addBox(carbon, -9, 9.8, railZ - 4.6, 30, 0.16, 0.16);
-  addBox(white, -9, 13.0, railZ - 1.0, 32, 0.32, 7.4);
-  addBox(carbon, -9, 13.22, railZ - 1.0, 32.2, 0.16, 7.7);
-  addBox(cyanGlow, -9, 12.78, railZ + 2.5, 30, 0.08, 0.12);
-  for (let x = -24; x <= 6; x += 6) {
-    addCyl(chrome, x, 11.0, railZ - 4.2, 0.11, 0.14, 3.4, 8);
-    addCyl(chrome, x, 11.0, railZ + 1.6, 0.11, 0.14, 3.4, 8);
-  }
-  addBox(white, -11.35, 9.4, railZ + 4.0, 25.3, 2.6, 0.3);
-  addBox(white, 3.45, 9.4, railZ + 4.0, 4.3, 2.6, 0.3);
-  addBox(white, 5.8, 9.4, railZ + 4.0, 0.4, 2.6, 0.3);
-  addBox(cyanGlow, -11.35, 10.72, railZ + 4.16, 24.9, 0.06, 0.06);
-  addBox(carbon, -12, 11.7, railZ + 4.08, 24, 2.4, 0.22);
-  addPanel(stationSignMaterial, -15, 11.7, railZ + 4.21, 16, 2.0, 0);
-  addPanel(stationWarningMaterial, -3.4, 11.7, railZ + 4.21, 5.4, 1.5, 0);
-  for (let i = 0; i < 4; i += 1) {
-    const x = -20 + i * 5;
-    addBox(chrome, x, 10.2, railZ + 3.0, 0.9, 1.5, 0.16);
-    addBox(carbon, x, 10.2, railZ + 3.0, 1.2, 1.8, 0.9);
-    addBox(i % 2 ? greenGlow : redGlow, x, 10.72, railZ + 2.5, 0.2, 0.08, 0.06);
-  }
-  // East platform extension puts the stair landing on the lawn, clear of the road.
-  addBox(white, 12, 8.9, railZ, 12, 1.0, 8.4);
-  addBox(carbon, 12, 9.42, railZ - 4.25, 12, 0.12, 0.16);
-  addBox(white, 8.6, 9.4, railZ + 4.0, 5.2, 2.2, 0.3);
-  addBox(white, 16.9, 9.4, railZ + 4.0, 2.2, 2.2, 0.3);
-  for (let i = 0; i < 11; i += 1) {
-    addBox(concrete, 13.5, 0.45 + i * 0.86, -57.6 - i * 0.56, 4.2, 0.86, 0.64);
-  }
-  addBox(chrome, 11.61, 4.95, -60.4, 0.08, 0.1, 10.4, -2.148, 0, 0);
-  addBox(chrome, 15.39, 4.95, -60.4, 0.08, 0.1, 10.4, -2.148, 0, 0);
-  for (const x of [-20, -12, 12]) {
-    addBox(white, x, 4.4, railZ, 1.1, 8, 1.1);
-    addBox(cyanGlow, x, 7.6, railZ + 0.58, 0.9, 0.06, 0.06);
-  }
-
-  // Second platform at Summit West, built on the open track west of the main hall.
   const westStationX = -56;
-  addBox(white, westStationX, 8.9, railZ, 24, 1.0, 8.4);
-  addBox(white, westStationX, 12.55, railZ - 1.0, 25, 0.3, 7.2);
-  addBox(carbon, westStationX, 12.78, railZ - 1.0, 25.2, 0.14, 7.5);
-  addBox(amberGlow, westStationX, 12.33, railZ + 2.5, 23.4, 0.06, 0.1);
+  const westPlatformZ = railZ + 5.4;
+  addBox(white, -64.15, 8.9, westPlatformZ, 7.7, 1.0, 6.6);
+  addBox(white, -49.85, 8.9, westPlatformZ, 11.7, 1.0, 6.6);
+  addBox(white, -58, 8.9, railZ + 3.0, 4.6, 1.0, 1.8);
+  addBox(white, westStationX, 12.55, westPlatformZ, 25, 0.3, 7.2);
+  addBox(carbon, westStationX, 12.78, westPlatformZ, 25.2, 0.14, 7.5);
+  addBox(amberGlow, westStationX, 12.33, railZ + 2.05, 23.4, 0.06, 0.1);
   for (const x of [-64, -48]) {
-    addCyl(chrome, x, 10.9, railZ - 3.4, 0.1, 0.14, 3.4, 8);
-    addCyl(chrome, x, 10.9, railZ + 2.0, 0.1, 0.14, 3.4, 8);
-    addBox(white, x, 4.4, railZ, 1.1, 8, 1.1);
-    addBox(amberGlow, x, 7.6, railZ + 0.58, 0.9, 0.06, 0.06);
+    addCyl(chrome, x, 10.9, railZ + 2.3, 0.1, 0.14, 3.4, 8);
+    addCyl(chrome, x, 10.9, railZ + 8.3, 0.1, 0.14, 3.4, 8);
+    addBox(white, x, 4.4, westPlatformZ, 1.1, 8, 1.1);
+    addBox(amberGlow, x, 7.6, railZ + 1.78, 0.9, 0.06, 0.06);
   }
-  addBox(white, -63.25, 9.4, railZ + 4.0, 5.5, 2.2, 0.3);
-  addBox(white, -50.75, 9.4, railZ + 4.0, 9.5, 2.2, 0.3);
-  addBox(carbon, westStationX, 11.7, railZ + 4.08, 18, 2.0, 0.22);
-  addPanel(stationWestSignMaterial, westStationX, 11.7, railZ + 4.21, 13, 1.75, 0);
-  addBox(amberGlow, westStationX, 10.62, railZ + 4.16, 19.6, 0.06, 0.06);
+  addBox(white, -63.25, 9.4, railZ + 8.75, 5.5, 2.2, 0.3);
+  addBox(white, -50.75, 9.4, railZ + 8.75, 9.5, 2.2, 0.3);
+  addBox(carbon, westStationX, 11.7, railZ + 8.83, 18, 2.0, 0.22);
+  addPanel(stationWestSignMaterial, westStationX, 11.7, railZ + 8.96, 13, 1.75, 0);
+  addBox(amberGlow, westStationX, 10.62, railZ + 8.91, 19.6, 0.06, 0.06);
   for (let i = 0; i < 11; i += 1) {
     addBox(concrete, -58, 0.45 + i * 0.86, -57.6 - i * 0.56, 4.2, 0.86, 0.64);
   }
@@ -1634,43 +1604,22 @@ export function buildSuburbs(scene) {
   addCyl(chrome, -51.8, 2.0, -54.2, 0.06, 0.08, 3.7, 6);
   addBox(amberGlow, -51.8, 3.86, -54.2, 0.8, 0.05, 0.05);
   addTrashBin(-51.2, -58.0, 0.16, amberGlow, Math.PI);
-  addTrashBin(-6.4, -60.2, 0.32, cyanGlow, 0);
+  addTrashBin(14.2, -54.1, 0.28, cyanGlow, 0);
 
-  // Ground-level ticket hall beneath the platform.
-  addBox(white, -14, 3.9, -65.6, 18, 7.8, 7.4);
-  addBox(carbon, -14, 7.92, -65.6, 18.4, 0.3, 7.8);
-  addBox(glass, -14, 2.5, -61.86, 16, 2.6, 0.1);
-  addBox(carbon, -14, 4.0, -61.8, 16.6, 0.28, 0.8);
-  addBox(concrete, -14, 0.16, -61.1, 18, 0.32, 2.6);
-  for (let i = 0; i < 4; i += 1) {
-    const x = -19 + i * 3.6;
-    addBox(chrome, x, 1.15, -62.6, 0.18, 2.3, 0.9);
-    addBox(cyanGlow, x, 2.2, -62.15, 0.3, 0.06, 0.4);
-  }
-  addPanel(transitStopMaterial, -14, 4.58, -61.79, 9.5, 1.25, 0);
-
-  // Park-and-ride and station plaza.
-  addBox(lotAsphalt, -10, 0.14, -45, 30, 0.12, 13.6);
-  addBox(lotAsphalt, -10, 0.14, -54, 21, 0.12, 5.2);
-  for (let i = 0; i < 8; i += 1) {
-    const x = -23.5 + (i % 4) * 4.2;
-    const z = -49 + Math.floor(i / 4) * 4.2;
-    addBox(solar, x, 3.6, z, 3.9, 0.06, 3.7, 0.28, 0, 0);
-    addBox(cyanGlow, x, 3.42, z + 1.5, 3.4, 0.05, 0.05);
-  }
-  for (const x of [-25.2, -9.9]) {
-    for (const z of [-50.8, -43.2]) {
-      addCyl(chrome, x, 1.8, z, 0.07, 0.1, 3.4, 6);
-    }
-    addBox(carbon, x, 3.5, -47, 0.14, 0.14, 7.8);
-  }
-  addBox(carbon, -10, 6.8, -54.4, 22, 0.2, 0.25);
-  addBox(white, -6.5, 0.16, -54.2, 7.2, 0.2, 2.2);
-  addBox(glass, -6.5, 1.3, -55.2, 6.6, 2.2, 0.08);
-  addBox(carbon, -6.5, 2.55, -55.2, 7.2, 0.16, 1.2);
-  addPanel(transitStopMaterial, -6.5, 1.5, -55.28, 4.8, 1.4, 0);
-  addBox(carbon, -9.7, 1.3, -55.25, 0.18, 2.2, 0.18);
-  addBox(carbon, -3.3, 1.3, -55.25, 0.18, 2.2, 0.18);
+  buildStationArchitecture({
+    config: STATION_CONFIG,
+    materials: {
+      white, concrete, concreteDark, carbon, carbonSoft, chrome, glass, darkGlass,
+      solar, lotAsphalt, wood, cyanGlow, amberGlow, magentaGlow, greenGlow,
+      markingMaterial, stationSignMaterial, transitStopMaterial,
+    },
+    makeSignTexture,
+    addBox,
+    addCyl,
+    addPanel,
+    addGeo,
+    composeAt,
+  });
 
   // --- Sidewalk furniture -------------------------------------------------
   // Sound-cancellation streetlights.
@@ -1695,12 +1644,16 @@ export function buildSuburbs(scene) {
   ]) {
     lampPositions.push({ x, z, ry });
   }
-  const poleMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.09, 0.15, 5.6, 8), carbonSoft, lampPositions.length);
-  const lampHead = new THREE.InstancedMesh(new THREE.BoxGeometry(1.9, 0.26, 0.5), carbon, lampPositions.length);
-  const lampLight = new THREE.InstancedMesh(new THREE.BoxGeometry(1.5, 0.06, 0.1), amberGlow, lampPositions.length);
-  const speakerPanels = new THREE.InstancedMesh(new THREE.BoxGeometry(0.9, 0.55, 0.14), carbon, lampPositions.length * 2);
-  const speakerGlow = new THREE.InstancedMesh(new THREE.BoxGeometry(0.72, 0.06, 0.04), cyanGlow, lampPositions.length * 2);
-  lampPositions.forEach((lamp, i) => {
+  const clearLampPositions = lampPositions.filter(({ x, z }) => !(
+    (x > 7 && x < 16 && z > -62 && z < -42)
+    || (x > 13 && x < 43 && z > -55 && z < -32)
+  ));
+  const poleMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.09, 0.15, 5.6, 8), carbonSoft, clearLampPositions.length);
+  const lampHead = new THREE.InstancedMesh(new THREE.BoxGeometry(1.9, 0.26, 0.5), carbon, clearLampPositions.length);
+  const lampLight = new THREE.InstancedMesh(new THREE.BoxGeometry(1.5, 0.06, 0.1), amberGlow, clearLampPositions.length);
+  const speakerPanels = new THREE.InstancedMesh(new THREE.BoxGeometry(0.9, 0.55, 0.14), carbon, clearLampPositions.length * 2);
+  const speakerGlow = new THREE.InstancedMesh(new THREE.BoxGeometry(0.72, 0.06, 0.04), cyanGlow, clearLampPositions.length * 2);
+  clearLampPositions.forEach((lamp, i) => {
     dummy.position.set(lamp.x, 2.98, lamp.z);
     dummy.rotation.set(0, lamp.ry, 0);
     dummy.scale.set(1, 1, 1);
@@ -1745,7 +1698,7 @@ export function buildSuburbs(scene) {
     addBox(cyanGlow, x, 4.15, z, 1.5, 0.05, 0.16);
   }
   addWayfinder(7.4, 11.6, Math.PI);
-  addWayfinder(-6.5, -56.8, 0);
+  addWayfinder(7.4, -43.2, 0);
   addWayfinder(-19.8, 40.8, Math.PI / 2);
 
   // Benches.
@@ -1869,7 +1822,9 @@ export function buildSuburbs(scene) {
   const clearOfCamera = [[10.4, 40], [10.4, -40], [10.4, -56], [20, -50], [-14, 11.1]];
   for (let i = treePositions.length - 1; i >= 0; i -= 1) {
     const [x, z] = treePositions[i];
-    if (clearOfCamera.some(([cx, cz]) => Math.abs(cx - x) < 0.6 && Math.abs(cz - z) < 0.6)) treePositions.splice(i, 1);
+    const inStationHardscape = (x > 7 && x < 44 && z > -56 && z < -32)
+      || (x > -30 && x < 18 && z > -74 && z < -41);
+    if (inStationHardscape || clearOfCamera.some(([cx, cz]) => Math.abs(cx - x) < 0.6 && Math.abs(cz - z) < 0.6)) treePositions.splice(i, 1);
   }
 
   const trunks = new THREE.InstancedMesh(
@@ -1972,7 +1927,7 @@ export function buildSuburbs(scene) {
   const parkedPlacements = [
     [27.5, 13.9, 0], [36.2, 17, Math.PI / 2], [42, 17, Math.PI / 2],
     [46.5, 17, Math.PI / 2], [52, 17, Math.PI / 2], [-31.5, -12.8, Math.PI / 2],
-    [-20, -46, 0], [-13.4, -46, 0], [0.5, -46, 0], [-6.7, -46, Math.PI], [64, 10.6, 0],
+    [17, -48.5, Math.PI / 2], [26, -48.5, Math.PI / 2], [35, -48.5, Math.PI / 2], [39.5, -48.5, Math.PI / 2], [64, 10.6, 0],
     [88, -37.45, 0], [132, -42.55, Math.PI],
   ];
   parkedPlacements.forEach(([x, z, ry], index) => {
@@ -2158,46 +2113,14 @@ export function buildSuburbs(scene) {
   }
   updateWalkers(0);
 
-  // --- Train --------------------------------------------------------------
-  const train = new THREE.Group();
-  const trainBodyGeometries = [];
-  const trainGlassGeometries = [];
-  const trainGlowGeometries = [];
-  for (let i = 0; i < 3; i += 1) {
-    const offset = (i - 1) * 8.4;
-    const body = new THREE.BoxGeometry(7.8, 2.5, 2.4);
-    body.translate(offset, 1.25, 0);
-    trainBodyGeometries.push(body);
-    const nose = new THREE.BoxGeometry(0.8, 1.8, 2.15);
-    nose.translate(offset + 4.1, 1.0, 0);
-    trainBodyGeometries.push(nose);
-    const windowBand = new THREE.BoxGeometry(6.4, 0.72, 2.46);
-    windowBand.translate(offset, 1.75, 0);
-    trainGlassGeometries.push(windowBand);
-    const stripe = new THREE.BoxGeometry(7.5, 0.08, 2.5);
-    stripe.translate(offset, 0.55, 0);
-    trainGlowGeometries.push(stripe);
-    for (let j = 0; j < 4; j += 1) {
-      const under = new THREE.BoxGeometry(0.9, 0.08, 2.5);
-      under.translate(offset - 3 + j * 2, 0.16, 0);
-      trainGlowGeometries.push(under);
-    }
-  }
-  const trainBodyMesh = new THREE.Mesh(mergeGeometries(trainBodyGeometries), white);
-  const trainGlassMesh = new THREE.Mesh(mergeGeometries(trainGlassGeometries), darkGlass);
-  const trainGlowMesh = new THREE.Mesh(mergeGeometries(trainGlowGeometries), cyanGlow);
-  train.add(trainBodyMesh, trainGlassMesh, trainGlowMesh);
-  const trainTurret = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.65, 1.1), carbon);
-  trainTurret.position.set(1.4, 2.7, 0);
-  const trainBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, 1.3, 6), chrome);
-  trainBarrel.rotation.z = Math.PI / 2;
-  trainBarrel.position.set(2.1, 2.8, 0);
-  train.add(trainTurret, trainBarrel);
-  const trainBeacon = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 6), redGlow);
-  trainBeacon.position.set(4.5, 2.15, 0);
-  train.add(trainBeacon);
-  train.position.set(-170, 9.5, railZ);
-  group.add(train);
+  const stationTrain = createStationTrain({
+    parent: group,
+    config: { ...STATION_CONFIG.train, trackZ: STATION_CONFIG.track.z },
+    materials: { white, carbon, carbonSoft, chrome, darkGlass, cyanGlow, amberGlow },
+    onAudio,
+  });
+  const stationPassengers = createStationPassengers({ parent: group, config: STATION_CONFIG, onAudio });
+  const benchCommuter = createBenchCommuter({ parent: group, config: STATION_CONFIG, reducedMotion });
 
   // --- Quadruped estate patrol mech --------------------------------------
   function makeQuadMech() {
@@ -2507,6 +2430,9 @@ export function buildSuburbs(scene) {
 
   return {
     group,
+    getStationDebugState() {
+      return { train: stationTrain.getDebugState(), passengers: stationPassengers.getDebugState() };
+    },
     setWeather(mode) {
       const wet = mode === 'rain' || mode === 'storm';
       sunGroup.visible = !wet;
@@ -2520,8 +2446,9 @@ export function buildSuburbs(scene) {
       updateWalkers(elapsed);
       updateCars(elapsed);
 
-      train.position.x = -170 + ((elapsed * 13) % 320);
-      trainBeacon.material.opacity = 0.55 + Math.sin(elapsed * 4) * 0.35;
+      stationTrain.update(delta, elapsed, stationPassengers.gates);
+      stationPassengers.update(delta, elapsed, stationTrain.service);
+      benchCommuter.update(elapsed);
 
       const avBob = Math.sin(elapsed * 0.9) * 0.16;
       av.position.y = 7.4 + avBob;

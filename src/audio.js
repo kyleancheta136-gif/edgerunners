@@ -14,6 +14,7 @@ export function createAudioEngine(callbacks = {}) {
     objectUrl: null,
     context: null,
     ambience: null,
+    stationLevel: 0,
     track: DEFAULT_TRACK,
   };
   music.preload = 'metadata';
@@ -62,7 +63,7 @@ export function createAudioEngine(callbacks = {}) {
 
   function syncAmbience() {
     if (!audio.context) return;
-    const target = audio.enabled && audio.sfxEnabled ? 0.09 : 0;
+    const target = audio.enabled && audio.sfxEnabled ? 0.07 + audio.stationLevel * 0.045 : 0;
     audio.ambience.gain.setTargetAtTime(target, audio.context.currentTime, 0.3);
   }
 
@@ -89,6 +90,44 @@ export function createAudioEngine(callbacks = {}) {
     source.connect(filter).connect(gain).connect(audio.context.destination);
     source.start(now);
     source.stop(now + duration);
+  }
+
+  function playStationNoise(type) {
+    const settings = {
+      brake: [2.1, 'bandpass', 1800, 480, 0.055],
+      door: [0.48, 'bandpass', 950, 280, 0.045],
+      footstep: [0.09, 'lowpass', 260, 120, 0.022],
+    }[type];
+    const [duration, filterType, startFrequency, endFrequency, volume] = settings;
+    const now = audio.context.currentTime;
+    const buffer = audio.context.createBuffer(1, Math.ceil(audio.context.sampleRate * duration), audio.context.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i += 1) data[i] = Math.random() * 2 - 1;
+    const source = audio.context.createBufferSource();
+    const filter = audio.context.createBiquadFilter();
+    const gain = audio.context.createGain();
+    source.buffer = buffer;
+    filter.type = filterType;
+    filter.frequency.setValueAtTime(startFrequency, now);
+    filter.frequency.exponentialRampToValueAtTime(endFrequency, now + duration);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(volume, now + Math.min(0.04, duration / 3));
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    source.connect(filter).connect(gain).connect(audio.context.destination);
+    source.start(now);
+    source.stop(now + duration);
+    if (type !== 'door') return;
+    [0, 0.18].forEach((offset, index) => {
+      const oscillator = audio.context.createOscillator();
+      const chime = audio.context.createGain();
+      oscillator.frequency.value = index ? 740 : 920;
+      chime.gain.setValueAtTime(0.0001, now + offset);
+      chime.gain.exponentialRampToValueAtTime(0.024, now + offset + 0.015);
+      chime.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.13);
+      oscillator.connect(chime).connect(audio.context.destination);
+      oscillator.start(now + offset);
+      oscillator.stop(now + offset + 0.14);
+    });
   }
 
   function progress() {
@@ -182,8 +221,16 @@ export function createAudioEngine(callbacks = {}) {
       audio.sfxEnabled = value;
       syncAmbience();
     },
+    setStationAmbience(value) {
+      audio.stationLevel = Math.min(Math.max(value, 0), 1);
+      syncAmbience();
+    },
     sfx(type = 'click') {
       if (!audio.enabled || !audio.sfxEnabled || !audio.context) return;
+      if (['brake', 'door', 'footstep'].includes(type)) {
+        playStationNoise(type);
+        return;
+      }
       if (type === 'thunder') {
         playThunder();
         return;

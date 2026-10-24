@@ -209,6 +209,18 @@ img { display: block; max-width: 100%; }
 .is-exploring .hero { opacity: 0; visibility: hidden; transform: translateX(-45px); pointer-events: none; }
 .is-exploring .city-data, .is-exploring .transmission { opacity: 0; pointer-events: none; }
 
+.bench-caption { position: fixed; z-index: 6; left: 4vw; right: 4vw; bottom: 34px; pointer-events: none; text-shadow: 0 2px 14px hsl(var(--ink) / .9); }
+.bench-caption > p { display: flex; align-items: center; gap: 10px; margin: 0 0 9px; color: hsl(var(--paper)); font-size: 7px; letter-spacing: 1.8px; }
+.bench-caption > p span { color: hsl(var(--cyan)); }
+.bench-caption h2 { margin: 0; color: hsl(var(--paper)); font: italic 800 clamp(36px, 4vw, 58px)/.9 var(--font-display); letter-spacing: -1px; }
+.bench-caption > div { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-top: 16px; }
+.bench-caption > div > span { color: hsl(var(--paper) / .72); font-size: 6px; letter-spacing: 1.4px; }
+.bench-caption button { min-height: 42px; padding: 0; color: hsl(var(--paper)); background: transparent; border-bottom: 1px solid hsl(var(--paper) / .55); font-size: 8px; letter-spacing: 1.2px; pointer-events: auto; }
+.bench-caption button span { margin-left: 12px; color: hsl(var(--acid)); }
+.bench-caption button:hover { color: hsl(var(--acid)); border-color: hsl(var(--acid)); }
+.bench-mode .district-panel, .bench-mode .experience-footer, .bench-mode .side-code, .bench-mode .frame-corner { opacity: 0; visibility: hidden; pointer-events: none; }
+.bench-mode .main-nav, .bench-mode .network-status { display: none; }
+
 .archive-modal { width: min(980px, 90vw); max-height: 86svh; padding: 0; color: hsl(var(--paper)); background: hsl(var(--ink-soft)); border: 1px solid hsl(var(--acid) / .45); overflow: auto; }
 .archive-modal[open] { display: grid; grid-template-columns: 1.2fr 1fr; animation: modal-in .45s var(--ease-out); }
 .archive-modal::backdrop { background: hsl(var(--ink) / .88); backdrop-filter: blur(10px); }
@@ -283,6 +295,10 @@ img { display: block; max-width: 100%; }
   .district-dock button { flex: 0 0 79px; min-width: 0; padding: 11px 8px; grid-template-columns: 1fr; gap: 4px; }.district-dock button strong { font-size: 9px; white-space: nowrap; }.district-dock button span { font-size: 6px; }
   .district-panel { left: 24px; right: auto; top: 15%; width: calc(100vw - 48px); }.district-panel h2 { margin: 8px 0 11px; font-size: clamp(40px, 11vw, 56px); }.district-panel__description { max-width: 310px; font-size: 9px; line-height: 1.75; }.district-panel__stats { margin-top: 14px; }.district-panel__close { top: -20px; }
   .district-places { margin-top: 12px; padding-top: 9px; }.district-places__grid button { min-height: 27px; padding: 0 5px; font-size: 6px; letter-spacing: .4px; gap: 4px; }.district-places__grid button span { font-size: 5px; }.district-panel__line { margin-top: 14px; }.district-panel__tip { margin-top: 8px; }
+  .bench-caption { left: 22px; right: 22px; bottom: 22px; }
+  .bench-caption h2 { font-size: 40px; }
+  .bench-caption > div { align-items: flex-end; gap: 12px; }
+  .bench-caption button { min-height: 46px; font-size: 7px; }
   .archive-modal[open] { grid-template-columns: 1fr; }.archive-modal__visual { min-height: 210px; max-height: 240px; }.archive-modal__content { padding: 30px 25px; }.archive-modal h2 { font-size: 46px; }
   .toast { top: 90px; white-space: nowrap; }.loader { padding: 22px; }.loader__wordmark { letter-spacing: -3px; }
 }

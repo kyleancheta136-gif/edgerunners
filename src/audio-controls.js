@@ -99,6 +99,7 @@ export function createAudioControls({ showToast }) {
 
   return {
     sfx: (type) => engine.sfx(type),
+    setStationAmbience: (value) => engine.setStationAmbience(value),
     closePanel() {
       if (panel.hidden) return false;
       setPanel(false);

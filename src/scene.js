@@ -40,8 +40,14 @@ const SUBURB_SKY = {
   storm: 0x667985,
   wind: 0x91bccd,
 };
+const BENCH_SKY = {
+  off: 0x91a9bd,
+  rain: 0x788c9b,
+  storm: 0x5d6e7d,
+  wind: 0x9aafc0,
+};
 
-export function createCityScene(container, { onThunder } = {}) {
+export function createCityScene(container, { onThunder, onStationAudio } = {}) {
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x03050a);
@@ -87,7 +93,7 @@ export function createCityScene(container, { onThunder } = {}) {
     market: buildMarketplace(scene),
     highway: buildHighway(scene),
     beach: buildBeach(scene),
-    suburbs: buildSuburbs(scene),
+    suburbs: buildSuburbs(scene, { onAudio: onStationAudio, reducedMotion }),
   };
   Object.entries(worlds).forEach(([id, world]) => { world.group.visible = id === 'city'; });
   const atmosphere = createAtmosphere(scene, reducedMotion, camera, onThunder);
@@ -100,17 +106,29 @@ export function createCityScene(container, { onThunder } = {}) {
   let transition = null;
   let exploring = false;
   let activeWorld = 'city';
+  let activeSuburbPlace = 'overview';
   let weather = 'off';
+  let benchMode = false;
+  let benchPointer = null;
+  const benchBaseTarget = new THREE.Vector3();
+  const benchDirection = new THREE.Vector3();
+  const benchLookTarget = new THREE.Vector3();
+  const benchEuler = new THREE.Euler(0, 0, 0, 'YXZ');
+  const benchLook = { yaw: 0, pitch: 0, targetYaw: 0, targetPitch: 0 };
   const clock = new THREE.Clock();
 
   function applyMood() {
     const [background, fog, density, exposure] = MOODS[activeWorld] || MOODS.city;
     const profile = WEATHER_MOODS[weather] || WEATHER_MOODS.off;
     const suburbTint = activeWorld === 'suburbs' ? SUBURB_SKY[weather] || SUBURB_SKY.off : null;
-    scene.background.setHex(suburbTint ?? background);
-    scene.fog.color.setHex(suburbTint ?? fog);
-    scene.fog.density = density * profile.fog;
-    renderer.toneMappingExposure = exposure * profile.exposure;
+    const bench = activeWorld === 'suburbs' && benchMode;
+    scene.background.setHex(bench ? BENCH_SKY[weather] : suburbTint ?? background);
+    scene.fog.color.setHex(bench ? BENCH_SKY[weather] : suburbTint ?? fog);
+    scene.fog.density = (bench ? 0.0015 : density) * profile.fog;
+    renderer.toneMappingExposure = (bench ? 1.02 : exposure) * profile.exposure;
+    keyLight.color.setHex(bench ? 0xffd0ad : 0x91a7ff);
+    keyLight.intensity = bench ? 1.15 : activeWorld === 'suburbs' ? 0.9 : 1.6;
+    ambient.intensity = bench ? 0.95 : activeWorld === 'suburbs' ? 0.85 : 1.7;
     atmosphere.setMode(activeWorld);
     atmosphere.syncMood();
     worlds.suburbs.setWeather?.(weather);
@@ -155,6 +173,41 @@ export function createCityScene(container, { onThunder } = {}) {
     controls.autoRotate = false;
   });
 
+  function leaveBench() {
+    if (!benchMode) return;
+    benchMode = false;
+    benchPointer = null;
+    controls.enabled = true;
+  }
+
+  function updateBenchCamera(delta) {
+    const view = SUBURB_VIEWS.bench;
+    const smoothing = reducedMotion ? 1 : 1 - Math.exp(-delta * 9);
+    benchLook.yaw += (benchLook.targetYaw - benchLook.yaw) * smoothing;
+    benchLook.pitch += (benchLook.targetPitch - benchLook.pitch) * smoothing;
+    benchDirection.subVectors(benchBaseTarget, camera.position).normalize();
+    benchDirection.applyEuler(benchEuler.set(benchLook.pitch, benchLook.yaw, 0, 'YXZ'));
+    benchLookTarget.copy(camera.position).add(benchDirection);
+    camera.lookAt(benchLookTarget);
+  }
+
+  renderer.domElement.addEventListener('pointerdown', (event) => {
+    if (!benchMode || event.button !== 0) return;
+    benchPointer = { id: event.pointerId, x: event.clientX, y: event.clientY };
+    renderer.domElement.setPointerCapture(event.pointerId);
+  });
+  renderer.domElement.addEventListener('pointermove', (event) => {
+    if (!benchPointer || benchPointer.id !== event.pointerId) return;
+    const view = SUBURB_VIEWS.bench;
+    benchLook.targetYaw = THREE.MathUtils.clamp(benchLook.targetYaw - (event.clientX - benchPointer.x) * 0.002, -view.yawLimit, view.yawLimit);
+    benchLook.targetPitch = THREE.MathUtils.clamp(benchLook.targetPitch - (event.clientY - benchPointer.y) * 0.0015, -view.pitchLimit, view.pitchLimit);
+    benchPointer.x = event.clientX;
+    benchPointer.y = event.clientY;
+  });
+  const endBenchPointer = () => { benchPointer = null; };
+  renderer.domElement.addEventListener('pointerup', endBenchPointer);
+  renderer.domElement.addEventListener('pointercancel', endBenchPointer);
+
   function animate() {
     const delta = Math.min(clock.getDelta(), 0.05);
     const elapsed = clock.elapsedTime;
@@ -169,7 +222,12 @@ export function createCityScene(container, { onThunder } = {}) {
       if (world.group.visible) world.update(delta, elapsed);
     });
     atmosphere.update(delta, elapsed);
-    controls.update();
+    if (benchMode) {
+      benchBaseTarget.copy(controls.target);
+      updateBenchCamera(delta);
+    } else {
+      controls.update();
+    }
     composer.render();
   }
 
@@ -179,12 +237,14 @@ export function createCityScene(container, { onThunder } = {}) {
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
     composer.setSize(window.innerWidth, window.innerHeight);
+    if (benchMode) moveCamera(SUBURB_VIEWS.bench, 1);
   });
 
   return {
     focusDistrict(id) {
       const location = DISTRICTS[id] ? id : 'center';
       exploring = true;
+      leaveBench();
       controls.autoRotate = false;
       activateWorld(worlds[location] ? location : 'city');
       moveCamera(DISTRICTS[location]);
@@ -192,11 +252,24 @@ export function createCityScene(container, { onThunder } = {}) {
     focusSuburbPlace(place) {
       if (activeWorld !== 'suburbs') return;
       exploring = true;
+      activeSuburbPlace = SUBURB_VIEWS[place] ? place : 'overview';
       controls.autoRotate = false;
-      moveCamera(SUBURB_VIEWS[place] || SUBURB_VIEWS.overview, 1500);
+      if (activeSuburbPlace === 'bench') {
+        benchMode = true;
+        controls.enabled = false;
+        benchLook.yaw = 0;
+        benchLook.pitch = 0;
+        benchLook.targetYaw = 0;
+        benchLook.targetPitch = 0;
+      } else {
+        leaveBench();
+      }
+      moveCamera(SUBURB_VIEWS[activeSuburbPlace], 1500);
+      applyMood();
     },
     reset() {
       exploring = false;
+      leaveBench();
       controls.autoRotate = !reducedMotion;
       activateWorld('city');
       moveCamera(OVERVIEW, 2000);
@@ -212,5 +285,15 @@ export function createCityScene(container, { onThunder } = {}) {
       bloom.enabled = high;
     },
     get exploring() { return exploring; },
+    getStationDebugState: () => worlds.suburbs.getStationDebugState(),
+    getCameraDebugState() {
+      return {
+        benchMode,
+        position: camera.position.toArray(),
+        target: benchMode ? benchLookTarget.toArray() : controls.target.toArray(),
+        yaw: benchLook.yaw,
+        pitch: benchLook.pitch,
+      };
+    },
   };
 }
